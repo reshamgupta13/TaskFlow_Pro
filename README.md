@@ -46,27 +46,31 @@ Traditional Kanban boards treat tasks as completely independent cards. In modern
 ## 3. System Architecture
 
 ```mermaid
-graph TD
-    UI[Frontend: React + TypeScript + dnd-kit]
-    API[FastAPI REST API /api]
-    DB[(SQLite / PostgreSQL Database)]
-    ENGINE[Pure DAG Engine: O V+E]
-    AI_PIPE[Untrusted AI Suggestion Pipeline]
-    LLM[LLM: Gemini / OpenAI / Semantic Fallback]
+flowchart TD
+    UI[Frontend: React + TypeScript]
+    API[FastAPI REST API]
+    ENGINE[Pure DAG Engine]
+    DB[(Database)]
+    AI_PIPE[AI Suggestion Pipeline]
+    LLM[LLM Provider]
 
-    UI -->|Mutations / Drag / Edges| API
-    API -->|1. Validate via Engine| ENGINE
-    API -->|2. Check & Write in 1 Tx| DB
-    API -->|3. Recompute Affected Subgraph| ENGINE
-    ENGINE -->|Schedule & Status| API
-    API -->|Optimistic Reconcile| UI
+    UI --> API
+    API --> ENGINE
+    API --> DB
+    ENGINE --> API
+    API --> UI
 
-    UI -->|Trigger AI Copilot| API
-    API -->|Closed-set Tasks| AI_PIPE
-    AI_PIPE -->|Prompt| LLM
-    LLM -->|Raw JSON Schema| AI_PIPE
-    AI_PIPE -->|Dry-run Cycle Check| ENGINE
-    AI_PIPE -->|Pending Suggestions| UI
+    UI --> API
+    API --> AI_PIPE
+    AI_PIPE --> LLM
+    LLM --> AI_PIPE
+    AI_PIPE --> ENGINE
+    AI_PIPE --> UI
+```
+
+**Request flow:** UI sends mutations (drag/edit) to the API, which validates via the DAG Engine before writing to the DB in one transaction, then recomputes the affected subgraph and returns updated schedule/status for an optimistic UI reconcile.
+
+**AI Copilot flow:** UI triggers the API, which sends the closed-set of tasks to the AI Suggestion Pipeline; the pipeline prompts the LLM, gets back raw JSON suggestions, dry-runs each one through the DAG Engine's cycle check, and returns only surviving suggestions to the UI for human accept/reject.
 ```
 
 ### Architectural Principles:

@@ -1,3 +1,5 @@
+from pathlib import Path
+import shutil
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,15 +13,14 @@ from app.seed_data import seed_database
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database tables
+    source_db = Path(__file__).resolve().parent.parent / "taskflow.db"
+    target_db = Path("/tmp/taskflow.db")
+
+    if source_db.exists() and not target_db.exists():
+        shutil.copy2(source_db, target_db)
+
     Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        # If board is empty, populate 10 canonical tasks
-        if db.query(Task).count() == 0:
-            seed_database(db)
-    finally:
-        db.close()
+
     yield
 
 
